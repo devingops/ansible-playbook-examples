@@ -1,0 +1,50 @@
+---
+- hosts: web_portal
+  tasks:
+    - name: update apt
+      apt: update_cache=yes
+
+    - name: install apache2, tmux, nginx
+      apt: name={{ item }} update_cache=no
+      with_items:
+        - apache2
+        - nmap
+        - nginx
+      register: install_status
+ 
+    - name: copy files
+      copy: src=index.html dest=/var/www/html/     
+      register: copy_status 
+
+    - name: start the service
+      service: name=apache2 state=stopped
+
+    - name: copy template file
+      template: src=current.html.j2 dest=/var/www/html/current.html
+      notify: restart apache
+
+    - name: check uptime
+      shell: uptime
+      register: uptime_var
+
+    - name: print uptime
+      debug: var=uptime_var
+    
+    - name: check status
+      debug: var=install_status
+
+    - name: Testing conditional
+      shell: uptime
+      when: ansible_hostname == 'node'
+
+    - name: Testing until
+      shell: service apache2 status
+      register: result
+      until: result.stdout.find("active (running)") != -1
+      retries: 5
+      delay: 5
+
+  handlers:
+    - name: restart apache
+      service: name=apache2 state=restarted
+ 
